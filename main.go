@@ -7,6 +7,19 @@ type Bind struct {
 }
 
 type Env []Bind // Env type are list of bindings
+var top_env Env = []Bind{
+	{"true", BoolV{true}},
+	{"false", BoolV{false}},
+	{"+", PrimopV{"+"}},
+	{"-", PrimopV{"-"}},
+	{"*", PrimopV{"*"}},
+	{"/", PrimopV{"/"}},
+	{"<=", PrimopV{"<="}},
+	{"equal?", PrimopV{"equal?"}},
+	{"strlen", PrimopV{"strlen"}},
+	{"substring", PrimopV{"substring"}},
+	{"error", PrimopV{"error"}}}
+	
 
 // we can define many structs to be apart of an interface, the interface has a method isVal() otherwise
 // any struct is of type Val
