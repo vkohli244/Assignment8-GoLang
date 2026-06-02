@@ -1,5 +1,10 @@
 package main
 
+import (
+	"fmt"
+	"errors"
+)
+
 // Bind structs contain string and Val
 type Bind struct {
 	name  string
@@ -74,6 +79,40 @@ func (bool_ BoolV) isVal()     {}
 func (string_ StringV) isVal() {}
 func (c CloV) isVal()          {}
 func (p PrimopV) isVal()       {}
+
+func interp(e ExprC, env Env) (Val, error) {
+	switch e := e.(type) {
+		case NumC:
+			return NumV{e.n}, nil
+
+		case idC:
+			return nil, fmt.Errorf("id lookup not implemented") // replace with env-lookup(e.id env) once env-lookup implemented
+
+		case LamC:
+			return CloV{params_: e.args, body_: e.body, env_: env}, nil
+
+		case StringC:
+			return StringV{e.s}, nil
+
+		case ifC:
+			test_val, err := interp(e.test, env)
+			if err != nil {
+				return nil, err
+			}
+			switch r := test_val.(type) {
+				case BoolV:
+					if r.bool_ {
+						return interp(e.then, env)
+					} else {
+						return interp(e.els, env)
+					}
+				default:
+					return nil, fmt.Errorf("VEBG4: if test condition is not a predicate, instead got %T", e)
+			}
+		default:
+			return nil, fmt.Errorf("VEBG4: interp takes an ExprC, got %T", e) 
+	}
+}
 
 func main() {
 
