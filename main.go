@@ -1,5 +1,6 @@
 package main
-
+//Need for serialize since serialize uses fmt.Println() and Sprintf()
+import "fmt"
 // Bind structs contain string and Val
 type Bind struct {
 	name  string
@@ -74,7 +75,30 @@ func (bool_ BoolV) isVal()     {}
 func (string_ StringV) isVal() {}
 func (c CloV) isVal()          {}
 func (p PrimopV) isVal()       {}
+// serialize: Val -> string
+// Converts the interpreted value into a string for printing
+func serialize(v Val) string {
+	switch v := v.(type) {
+	case NumV:
+		return fmt.Sprintf("%f", v.num_)
+	case BoolV:
+		if val.bool_ {
+			return "true"
+		}
+		return "false"
+	case StringV:
+		return fmt.Sprintf("%s", v.string_)
+	case CloV:
+		return "#<procedure>"
+	case PrimopV:
+		return "#<primop>"
+	default:
+		panic("VEBG4: unknown value in serialize")
+	}
+}
+
+
 
 func main() {
-
+	
 }
