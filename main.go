@@ -1,6 +1,9 @@
 package main
 //Need for serialize since serialize uses fmt.Println() and Sprintf()
-import "fmt"
+import (
+	"fmt"
+)
+
 // Bind structs contain string and Val
 type Bind struct {
 	name  string
@@ -9,8 +12,8 @@ type Bind struct {
 
 type Env []Bind // Env type are list of bindings
 var top_env Env = []Bind{
-	{"true", BoolV{true}},
-	{"false", BoolV{false}},
+	{"true", BoolV{bool_: true}},
+	{"false", BoolV{bool_: false}},
 	{"+", PrimopV{"+"}},
 	{"-", PrimopV{"-"}},
 	{"*", PrimopV{"*"}},
@@ -20,7 +23,6 @@ var top_env Env = []Bind{
 	{"strlen", PrimopV{"strlen"}},
 	{"substring", PrimopV{"substring"}},
 	{"error", PrimopV{"error"}}}
-	
 
 // we can define many structs to be apart of an interface, the interface has a method isVal() otherwise
 // any struct is of type Val
@@ -98,6 +100,98 @@ func serialize(v Val) string {
 }
 
 
+
+// envLookup looks up a name in an environment and returns the value it's bound to
+func envLookup(name string, env Env) (Val, error) {
+	if len(env) == 0 {
+		return nil, fmt.Errorf("VEBG8 value not found: %s", name)
+	}
+	if env[0].name == name {
+		return env[0].value, nil
+	}
+	return envLookup(name, env[1:])
+}
+
+func zip(names []string, values []Val) Env {
+	binds := make(Env, 0, len(names))
+
+	for i := range names { // pythonic loop
+		binds := make(Env, 0, len(names))
+		binds = append(binds, Bind{
+			name:  names[i],
+			value: values[i],
+		})
+	}
+
+	return binds
+}
+
+func interp(e ExprC, env Env) (Val, error) {
+	switch e := e.(type) {
+	case NumC:
+		return NumV{e.n}, nil
+
+	case idC:
+		return envLookup(e.id, env)
+
+	case LamC:
+		return CloV{params_: e.args, body_: e.body, env_: env}, nil
+
+	case StringC:
+		return StringV{e.s}, nil
+
+	case ifC:
+		test_val, err := interp(e.test, env)
+		if err != nil {
+			return nil, err
+		}
+		switch r := test_val.(type) {
+		case BoolV:
+			if r.bool_ {
+				return interp(e.then, env)
+			} else {
+				return interp(e.els, env)
+			}
+		default:
+			return nil, fmt.Errorf("VEBG4: if test condition is not a predicate, instead got %T", e)
+		}
+	case AppC:
+		fun_val, err := interp(e.f, env)
+		if err != nil {
+			return nil, err
+		}
+		args := e.args
+		argvals := make([]Val, 0, len(args)) // another way to do this argvals := []Val{} but this starts with a length of 0, we know we have at most len(argvals) elements
+		//wrote the loop like this:  for i := 0; i < len(args); i++  gopls recommended modernizing
+		for _, arg := range args { // the _ gives index, this is very pythonic way of writing loops
+			val, err := interp(arg, env)
+			if err != nil {
+				return nil, err
+			}
+			argvals = append(argvals, val)
+		}
+		switch r := fun_val.(type) {
+		case CloV:
+			lenParams := len(r.params_)
+			lenArgvals := len(argvals)
+			if lenParams != lenArgvals {
+				return nil, fmt.Errorf("VEBG8: wrong number of arguments: Expcted: %d, got: %d", lenParams, lenArgvals)
+			} else {
+				binds := zip(r.params_, argvals)
+				env2 := append(binds, r.env_...)
+				// without the elipsis operator append would attempt to put r.env_ as one element in binds,
+				// but binds expects individual bindings, the "..." functions basically the exact same as the spread operator in js
+				return interp(r.body_, env2)
+			}
+		default:
+			return nil, fmt.Errorf("VEBG4: if test condition is not a predicate, instead got %T", e)
+		}
+
+	default:
+		return nil, fmt.Errorf("VEBG4: interp takes an ExprC, got %T", e)
+	}
+
+}
 
 func main() {
 	
