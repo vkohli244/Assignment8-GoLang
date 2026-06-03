@@ -193,6 +193,63 @@ func interp(e ExprC, env Env) (Val, error) {
 
 }
 
+
+// primSubstring : []Val -> Val
+// Builds a substring given a stop and start index
+fun primSubstring(args []Val) Val {
+   if len(args) != 3 {
+       panic("VEBG4 substring called with bad argument types")
+   }
+
+
+   s, ok1 := args[0].(StringV)
+   start, ok2 := args[1].(NumV)
+   stop, ok3 := args[2].(NumV)
+
+
+   if !ok1 || !ok2 || !ok3 {
+       panic("VEBG4 substring called with bad argument types")
+   }
+
+
+   if start.num_ < 0 ||
+       stop.num_ < 0 ||
+       start.num_ != float64(int(start.num_)) ||
+       stop.num_ != float64(int(stop.num_)) {
+
+
+       panic("VEBG4 substring called with non-naturals")
+   }
+
+
+   if int(start.num_) > len(s.string_) ||
+       int(stop.num_) > len(s.string_) {
+
+
+       panic("VEBG4 index out of bounds")
+   }
+
+
+   if start.num_ > stop.num_ {
+       panic("VEBG4 stop before start")
+   }
+
+
+   return StringV{
+       string_: s.string_[int(start.num_):int(stop.num_)],
+   }
+}
+
+
+// primError : []Val -> Val
+// Raises a user error
+func primError(args []Val) Val {
+   if len(args) != 1 {
+       panic("VEBG4 error requires one value")
+   }
+   panic("VEBG4 user-error " + serialize(args[0]))
+}
+
 func main() {
 	
 }
