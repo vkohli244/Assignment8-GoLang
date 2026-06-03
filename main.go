@@ -82,14 +82,14 @@ func (PrimopV) isVal()       {}
 func serialize(v Val) string {
 	switch v := v.(type) {
 	case NumV:
-		return fmt.Sprintf("%f", v.num_)
+		return fmt.Sprintf("%v", v.num_)
 	case BoolV:
 		if v.bool_ {
 			return "true"
 		}
 		return "false"
 	case StringV:
-		return fmt.Sprintf("%s", v.string_)
+		return fmt.Sprintf("%q", v.string_)
 	case CloV:
 		return "#<procedure>"
 	case PrimopV:
