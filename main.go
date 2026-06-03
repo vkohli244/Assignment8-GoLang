@@ -48,12 +48,12 @@ type ifC struct {
 	els  ExprC
 }
 
-func (i idC) isExpr()     {}
-func (s StringC) isExpr() {}
-func (n NumC) isExpr()    {}
-func (l LamC) isExpr()    {}
-func (a AppC) isExpr()    {}
-func (i ifC) isExpr()     {}
+func (idC) isExpr()     {}
+func (StringC) isExpr() {}
+func (NumC) isExpr()    {}
+func (LamC) isExpr()    {}
+func (AppC) isExpr()    {}
+func (ifC) isExpr()     {}
 
 type Val interface {
 	isVal()
@@ -72,11 +72,11 @@ type CloV struct {
 
 // this is the only way to tell go that the structs belong to the interface
 // In go, a struct satisifes an interface by implementing all of its methods
-func (num_ NumV) isVal()       {}
-func (bool_ BoolV) isVal()     {}
-func (string_ StringV) isVal() {}
-func (c CloV) isVal()          {}
-func (p PrimopV) isVal()       {}
+func (NumV) isVal()       {}
+func (BoolV) isVal()     {}
+func (StringV) isVal() {}
+func (CloV) isVal()          {}
+func (PrimopV) isVal()       {}
 // serialize: Val -> string
 // Converts the interpreted value into a string for printing
 func serialize(v Val) string {
@@ -95,7 +95,7 @@ func serialize(v Val) string {
 	case PrimopV:
 		return "#<primop>"
 	default:
-		panic("VEBG4: unknown value in serialize")
+		return fmt.Sprintf("VEBG4: unknown value in serialize (given %T)", v)
 	}
 }
 
@@ -214,20 +214,20 @@ func interp(e ExprC, env Env) (Val, error) {
 			argvals = append(argvals, val)
 		}
 		switch r := fun_val.(type) {
-		case CloV:
-			lenParams := len(r.params_)
-			lenArgvals := len(argvals)
-			if lenParams != lenArgvals {
-				return nil, fmt.Errorf("VEBG8: wrong number of arguments: Expcted: %d, got: %d", lenParams, lenArgvals)
-			} else {
-				binds := zip(r.params_, argvals)
-				env2 := append(binds, r.env_...)
-				// without the elipsis operator append would attempt to put r.env_ as one element in binds,
-				// but binds expects individual bindings, the "..." functions basically the exact same as the spread operator in js
-				return interp(r.body_, env2)
-			}
-		default:
-			return nil, fmt.Errorf("VEBG4: if test condition is not a predicate, instead got %T", e)
+			case CloV:
+				lenParams := len(r.params_)
+				lenArgvals := len(argvals)
+				if lenParams != lenArgvals {
+					return nil, fmt.Errorf("VEBG8: wrong number of arguments: Expcted: %d, got: %d", lenParams, lenArgvals)
+				} else {
+					binds := zip(r.params_, argvals)
+					env2 := append(binds, r.env_...)
+					// without the elipsis operator append would attempt to put r.env_ as one element in binds,
+					// but binds expects individual bindings, the "..." functions basically the exact same as the spread operator in js
+					return interp(r.body_, env2)
+				}
+			default:
+				return nil, fmt.Errorf("VEBG4: if test condition is not a predicate, instead got %T", e)
 		}
 
 	default:
