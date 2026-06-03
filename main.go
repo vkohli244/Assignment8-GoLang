@@ -82,14 +82,14 @@ func (p PrimopV) isVal()       {}
 func serialize(v Val) string {
 	switch v := v.(type) {
 	case NumV:
-		return fmt.Sprintf("%f", v.num_)
+		return fmt.Sprintf("%v", v.num_)
 	case BoolV:
-		if val.bool_ {
+		if v.bool_ {
 			return "true"
 		}
 		return "false"
 	case StringV:
-		return fmt.Sprintf("%s", v.string_)
+		return fmt.Sprintf("%q", v.string_)
 	case CloV:
 		return "#<procedure>"
 	case PrimopV:
@@ -196,7 +196,7 @@ func interp(e ExprC, env Env) (Val, error) {
 
 // primSubstring : []Val -> Val
 // Builds a substring given a stop and start index
-fun primSubstring(args []Val) Val {
+func primSubstring(args []Val) Val {
    if len(args) != 3 {
        panic("VEBG4 substring called with bad argument types")
    }
