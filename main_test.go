@@ -1,6 +1,7 @@
 package main
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -8,6 +9,7 @@ import (
 var testEnv = Env{
 	{name: "b", value: NumV{num_: 2}},
 	{name: "a", value: NumV{num_: 1}},
+	{name: "c", value: BoolV{true}},
 }
 
 func TestEnvLookup(t *testing.T) {
@@ -140,5 +142,92 @@ func TestPrimStrlenWrongArity(t *testing.T) {
 	_, err = primStrlen([]Val{NumV{num_: 6}, NumV{num_: 6}})
 	if err == nil || !strings.Contains(err.Error(), "strlen requires one value") {
 		t.Fatalf("expected arity error, got %v", err)
+	}
+}
+
+func TestNumCInterp(t *testing.T) {
+	input := NumC{3}
+	expected := NumV{3}
+	actual, err := interp(input, testEnv)
+	
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+	if expected != actual {
+		t.Errorf("interp(NumC{3}) failed, expected %v, got %v", expected, actual)
+	}
+}
+
+func TestIdCInterp(t *testing.T) {
+	input := idC{"a"}
+	expected := NumV{1}
+	actual, err := interp(input, testEnv)
+	
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+	if expected != actual {
+		t.Errorf("interp(IdC{\"a\"}) failed, expected %v, got %v", expected, actual)
+	}
+}
+
+func TestLamCInterp(t *testing.T) {
+	input := LamC{args: []string{"a", "b"}, body: NumC{1}}
+
+	expected := CloV{[]string{"a", "b"}, NumC{1}, testEnv}
+	actual, err := interp(input, testEnv)
+
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("interp(CloV) failed, expected %v, got %v", expected, actual)
+	}
+}
+
+func TestStringCInterp(t *testing.T) {
+	input := StringC{"test"}
+	expected := StringV{"test"}
+	actual, err := interp(input, testEnv)
+	
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+	if expected != actual {
+		t.Errorf("interp(StringC) failed, expected %v, got %v", expected, actual)
+	}
+}
+
+func TestIfCInterp(t *testing.T) {
+	input := ifC{idC{"c"}, NumC{1}, NumC{2}}
+	expected := NumV{1}
+	actual, err := interp(input, testEnv)
+	
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+	if expected != actual {
+		t.Errorf("interp(IfC) failed, expected %v, got %v", expected, actual)
+	}
+}
+
+func TestIfCNotPredicate(t *testing.T) {
+	input := ifC{NumC{3}, NumC{1}, NumC{2}}
+	_, err := interp(input, testEnv)
+	
+	if err == nil || !strings.Contains(err.Error(), "if test condition is not a predicate") {
+		t.Errorf("expected error for bad condition in if, got %v", err)
+	}
+}
+
+type FakeExprC struct {}
+func (FakeExprC) isExpr() {}
+
+func TestInterpBadInput(t *testing.T) {
+	_, err := interp(FakeExprC{}, testEnv)
+
+	if err == nil || !strings.Contains(err.Error(), "interp takes an ExprC") {
+		t.Errorf("expected error for bad input to interp, got %v", err)
 	}
 }
