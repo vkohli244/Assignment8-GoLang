@@ -1,4 +1,5 @@
 package main
+import "fmt"
 
 // Bind structs contain string and Val
 type Bind struct {
@@ -8,8 +9,8 @@ type Bind struct {
 
 type Env []Bind // Env type are list of bindings
 var top_env Env = []Bind{
-	{"true", BoolV{true}},
-	{"false", BoolV{false}},
+	{"true", BoolV{bool_: true}},
+	{"false", BoolV{bool_: false}},
 	{"+", PrimopV{"+"}},
 	{"-", PrimopV{"-"}},
 	{"*", PrimopV{"*"}},
@@ -74,6 +75,17 @@ func (bool_ BoolV) isVal()     {}
 func (string_ StringV) isVal() {}
 func (c CloV) isVal()          {}
 func (p PrimopV) isVal()       {}
+
+// envLookup looks up a name in an environment and returns the value it's bound to
+func envLookup(name string, env Env) (Val, error) {
+	if len(env) == 0 {
+		return nil, fmt.Errorf("value not found: %s", name)
+	}
+	if env[0].name == name {
+		return env[0].value, nil
+	}
+	return envLookup(name, env[1:])
+}
 
 func main() {
 
