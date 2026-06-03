@@ -20,7 +20,6 @@ var top_env Env = []Bind{
 	{"strlen", PrimopV{"strlen"}},
 	{"substring", PrimopV{"substring"}},
 	{"error", PrimopV{"error"}}}
-	
 
 // we can define many structs to be apart of an interface, the interface has a method isVal() otherwise
 // any struct is of type Val
@@ -85,6 +84,83 @@ func envLookup(name string, env Env) (Val, error) {
 		return env[0].value, nil
 	}
 	return envLookup(name, env[1:])
+}
+
+// primEqual checks whether two numbers, strings, or booleans are equal
+func primEqual(args []Val) (Val, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf("equal? requires two values")
+	}
+	leftValue := args[0]
+	rightValue := args[1]
+	switch left := leftValue.(type) {
+	case NumV:
+		right, isNum := rightValue.(NumV)
+		if !isNum {
+			return BoolV{bool_: false}, nil
+		}
+		return BoolV{bool_: left.num_ == right.num_}, nil
+	case StringV:
+		right, isString := rightValue.(StringV)
+		if !isString {
+			return BoolV{bool_: false}, nil
+		}
+		return BoolV{bool_: left.string_ == right.string_}, nil
+	case BoolV:
+		right, isBool := rightValue.(BoolV)
+		if !isBool {
+			return BoolV{bool_: false}, nil
+		}
+		return BoolV{bool_: left.bool_ == right.bool_}, nil
+	default:
+		return BoolV{bool_: false}, nil
+	}
+}
+
+// primStrlen returns the length of a string as a number
+func primStrlen(args []Val) (Val, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("strlen requires one value")
+	}
+	stringValue, isString := args[0].(StringV)
+	if !isString {
+		return nil, fmt.Errorf("not a string")
+	}
+	return NumV{num_: float64(len(stringValue.string_))}, nil
+}
+
+func interp(e ExprC, env Env) (Val, error) {
+	switch e := e.(type) {
+	case NumC:
+		return NumV{e.n}, nil
+
+	case idC:
+		return nil, fmt.Errorf("id lookup not implemented") // replace with env-lookup(e.id env) once env-lookup implemented
+
+	case LamC:
+		return CloV{params_: e.args, body_: e.body, env_: env}, nil
+
+	case StringC:
+		return StringV{e.s}, nil
+
+	case ifC:
+		test_val, err := interp(e.test, env)
+		if err != nil {
+			return nil, err
+		}
+		switch r := test_val.(type) {
+		case BoolV:
+			if r.bool_ {
+				return interp(e.then, env)
+			} else {
+				return interp(e.els, env)
+			}
+		default:
+			return nil, fmt.Errorf("VEBG4: if test condition is not a predicate, instead got %T", e)
+		}
+	default:
+		return nil, fmt.Errorf("VEBG4: interp takes an ExprC, got %T", e)
+	}
 }
 
 func main() {
