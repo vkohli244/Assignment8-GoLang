@@ -84,7 +84,7 @@ func serialize(v Val) string {
 	case NumV:
 		return fmt.Sprintf("%f", v.num_)
 	case BoolV:
-		if val.bool_ {
+		if v.bool_ {
 			return "true"
 		}
 		return "false"
@@ -110,6 +110,49 @@ func envLookup(name string, env Env) (Val, error) {
 		return env[0].value, nil
 	}
 	return envLookup(name, env[1:])
+}
+
+// primEqual checks whether two numbers, strings, or booleans are equal
+func primEqual(args []Val) (Val, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf("equal? requires two values")
+	}
+	leftValue := args[0]
+	rightValue := args[1]
+	switch left := leftValue.(type) {
+	case NumV:
+		right, isNum := rightValue.(NumV)
+		if !isNum {
+			return BoolV{bool_: false}, nil
+		}
+		return BoolV{bool_: left.num_ == right.num_}, nil
+	case StringV:
+		right, isString := rightValue.(StringV)
+		if !isString {
+			return BoolV{bool_: false}, nil
+		}
+		return BoolV{bool_: left.string_ == right.string_}, nil
+	case BoolV:
+		right, isBool := rightValue.(BoolV)
+		if !isBool {
+			return BoolV{bool_: false}, nil
+		}
+		return BoolV{bool_: left.bool_ == right.bool_}, nil
+	default:
+		return BoolV{bool_: false}, nil
+	}
+}
+
+// primStrlen returns the length of a string as a number
+func primStrlen(args []Val) (Val, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("strlen requires one value")
+	}
+	stringValue, isString := args[0].(StringV)
+	if !isString {
+		return nil, fmt.Errorf("not a string")
+	}
+	return NumV{num_: float64(len(stringValue.string_))}, nil
 }
 
 func zip(names []string, values []Val) Env {
@@ -196,7 +239,7 @@ func interp(e ExprC, env Env) (Val, error) {
 
 // primSubstring : []Val -> Val
 // Builds a substring given a stop and start index
-fun primSubstring(args []Val) Val {
+func primSubstring(args []Val) Val {
    if len(args) != 3 {
        panic("VEBG4 substring called with bad argument types")
    }
