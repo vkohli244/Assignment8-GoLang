@@ -159,7 +159,6 @@ func zip(names []string, values []Val) Env {
 	binds := make(Env, 0, len(names))
 
 	for i := range names { // pythonic loop
-		binds := make(Env, 0, len(names))
 		binds = append(binds, Bind{
 			name:  names[i],
 			value: values[i],
