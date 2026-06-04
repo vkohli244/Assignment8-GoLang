@@ -1,4 +1,5 @@
 package main
+
 //Need for serialize since serialize uses fmt.Println() and Sprintf()
 import (
 	"fmt"
@@ -72,11 +73,12 @@ type CloV struct {
 
 // this is the only way to tell go that the structs belong to the interface
 // In go, a struct satisifes an interface by implementing all of its methods
-func (NumV) isVal()       {}
-func (BoolV) isVal()     {}
+func (NumV) isVal()    {}
+func (BoolV) isVal()   {}
 func (StringV) isVal() {}
-func (CloV) isVal()          {}
-func (PrimopV) isVal()       {}
+func (CloV) isVal()    {}
+func (PrimopV) isVal() {}
+
 // serialize: Val -> string
 // Converts the interpreted value into a string for printing
 func serialize(v Val) string {
@@ -98,8 +100,6 @@ func serialize(v Val) string {
 		return fmt.Sprintf("VEBG4: unknown value in serialize (given %T)", v)
 	}
 }
-
-
 
 // envLookup looks up a name in an environment and returns the value it's bound to
 func envLookup(name string, env Env) (Val, error) {
@@ -213,20 +213,20 @@ func interp(e ExprC, env Env) (Val, error) {
 			argvals = append(argvals, val)
 		}
 		switch r := fun_val.(type) {
-			case CloV:
-				lenParams := len(r.params_)
-				lenArgvals := len(argvals)
-				if lenParams != lenArgvals {
-					return nil, fmt.Errorf("VEBG8: wrong number of arguments: Expcted: %d, got: %d", lenParams, lenArgvals)
-				} else {
-					binds := zip(r.params_, argvals)
-					env2 := append(binds, r.env_...)
-					// without the elipsis operator append would attempt to put r.env_ as one element in binds,
-					// but binds expects individual bindings, the "..." functions basically the exact same as the spread operator in js
-					return interp(r.body_, env2)
-				}
-			default:
-				return nil, fmt.Errorf("VEBG4: if test condition is not a predicate, instead got %T", e)
+		case CloV:
+			lenParams := len(r.params_)
+			lenArgvals := len(argvals)
+			if lenParams != lenArgvals {
+				return nil, fmt.Errorf("VEBG8: wrong number of arguments: Expcted: %d, got: %d", lenParams, lenArgvals)
+			} else {
+				binds := zip(r.params_, argvals)
+				env2 := append(binds, r.env_...)
+				// without the elipsis operator append would attempt to put r.env_ as one element in binds,
+				// but binds expects individual bindings, the "..." functions basically the exact same as the spread operator in js
+				return interp(r.body_, env2)
+			}
+		default:
+			return nil, fmt.Errorf("VEBG4: if test condition is not a predicate, instead got %T", e)
 		}
 
 	default:
@@ -235,63 +235,53 @@ func interp(e ExprC, env Env) (Val, error) {
 
 }
 
-
 // primSubstring : []Val -> Val
 // Builds a substring given a stop and start index
 func primSubstring(args []Val) Val {
-   if len(args) != 3 {
-       panic("VEBG4 substring called with bad argument types")
-   }
+	if len(args) != 3 {
+		panic("VEBG4 substring called with bad argument types")
+	}
 
+	s, ok1 := args[0].(StringV)
+	start, ok2 := args[1].(NumV)
+	stop, ok3 := args[2].(NumV)
 
-   s, ok1 := args[0].(StringV)
-   start, ok2 := args[1].(NumV)
-   stop, ok3 := args[2].(NumV)
+	if !ok1 || !ok2 || !ok3 {
+		panic("VEBG4 substring called with bad argument types")
+	}
 
+	if start.num_ < 0 ||
+		stop.num_ < 0 ||
+		start.num_ != float64(int(start.num_)) ||
+		stop.num_ != float64(int(stop.num_)) {
 
-   if !ok1 || !ok2 || !ok3 {
-       panic("VEBG4 substring called with bad argument types")
-   }
+		panic("VEBG4 substring called with non-naturals")
+	}
 
+	if int(start.num_) > len(s.string_) ||
+		int(stop.num_) > len(s.string_) {
 
-   if start.num_ < 0 ||
-       stop.num_ < 0 ||
-       start.num_ != float64(int(start.num_)) ||
-       stop.num_ != float64(int(stop.num_)) {
+		panic("VEBG4 index out of bounds")
+	}
 
+	if start.num_ > stop.num_ {
+		panic("VEBG4 stop before start")
+	}
 
-       panic("VEBG4 substring called with non-naturals")
-   }
-
-
-   if int(start.num_) > len(s.string_) ||
-       int(stop.num_) > len(s.string_) {
-
-
-       panic("VEBG4 index out of bounds")
-   }
-
-
-   if start.num_ > stop.num_ {
-       panic("VEBG4 stop before start")
-   }
-
-
-   return StringV{
-       string_: s.string_[int(start.num_):int(stop.num_)],
-   }
+	return StringV{
+		string_: s.string_[int(start.num_):int(stop.num_)],
+	}
 }
-
 
 // primError : []Val -> Val
 // Raises a user error
 func primError(args []Val) Val {
-   if len(args) != 1 {
-       panic("VEBG4 error requires one value")
-   }
-   panic("VEBG4 user-error " + serialize(args[0]))
+	if len(args) != 1 {
+		panic("VEBG4 error requires one value")
+	}
+	panic("VEBG4 user-error " + serialize(args[0]))
 }
 
 func main() {
-	
+
 }
