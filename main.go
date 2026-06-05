@@ -34,7 +34,7 @@ type ExprC interface {
 
 type idC struct{ id string }
 type StringC struct{ s string }
-type NumC struct{ n float64 }
+type NumC struct{ n int }
 type LamC struct {
 	args []string
 	body ExprC
@@ -60,7 +60,7 @@ type Val interface {
 	isVal()
 }
 
-type NumV struct{ num_ float64 }
+type NumV struct{ num_ int }
 type BoolV struct{ bool_ bool }
 type StringV struct{ string_ string }
 type PrimopV struct{ op string }
@@ -97,7 +97,7 @@ func serialize(v Val) string {
 	case PrimopV:
 		return "#<primop>"
 	default:
-		return fmt.Sprintf("VEBG4: unknown value in serialize (given %T)", v)
+		return fmt.Sprintf("VEBG8: unknown value in serialize (given %T)", v)
 	}
 }
 
@@ -112,47 +112,206 @@ func envLookup(name string, env Env) (Val, error) {
 	return envLookup(name, env[1:])
 }
 
+// checkArity checks that a primitive has the expected number of arguments.
+func checkArity(op string, args []Val, expected int) ([]Val, error) {
+	if len(args) == expected {
+		return args, nil
+	}
+	return nil, fmt.Errorf("VEBG8: wrong number of arguments to %s", op)
+}
+
+// primPlus adds two numbers.
+func primPlus(args []Val) (Val, error) {
+	left, leftOk := args[0].(NumV)
+	right, rightOk := args[1].(NumV)
+
+	if leftOk && rightOk {
+		return NumV{num_: left.num_ + right.num_}, nil
+	}
+
+	return nil, fmt.Errorf("VEBG8: + requires numbers, got %T and %T", args[0], args[1])
+}
+
+// primMinus subtracts the second number from the first.
+func primMinus(args []Val) (Val, error) {
+	left, leftOk := args[0].(NumV)
+	right, rightOk := args[1].(NumV)
+
+	if leftOk && rightOk {
+		return NumV{num_: left.num_ - right.num_}, nil
+	}
+
+	return nil, fmt.Errorf("VEBG8: - requires numbers, got %T and %T", args[0], args[1])
+}
+
+// primMult multiplies two numbers.
+func primMult(args []Val) (Val, error) {
+	left, leftOk := args[0].(NumV)
+	right, rightOk := args[1].(NumV)
+
+	if leftOk && rightOk {
+		return NumV{num_: left.num_ * right.num_}, nil
+	}
+
+	return nil, fmt.Errorf("VEBG8: * requires numbers, got %T and %T", args[0], args[1])
+}
+
+// primDiv divides the first number by  second
+func primDiv(args []Val) (Val, error) {
+	left, leftOk := args[0].(NumV)
+	right, rightOk := args[1].(NumV)
+
+	if leftOk && rightOk {
+		if right.num_ == 0 {
+			return nil, fmt.Errorf("VEBG8: division by 0 undefined")
+		}
+		return NumV{num_: left.num_ / right.num_}, nil
+	}
+
+	return nil, fmt.Errorf("VEBG8: / requires numbers, got %T and %T", args[0], args[1])
+}
+
+// primLessEqual checks if the first number is less than or equal to the second
+func primLessEqual(args []Val) (Val, error) {
+	left, leftOk := args[0].(NumV)
+	right, rightOk := args[1].(NumV)
+
+	if leftOk && rightOk {
+		return BoolV{bool_: left.num_ <= right.num_}, nil
+	}
+
+	return nil, fmt.Errorf("VEBG8: <= requires numbers, got %T and %T", args[0], args[1])
+}
+
 // primEqual checks whether two numbers, strings, or booleans are equal
 func primEqual(args []Val) (Val, error) {
-	if len(args) != 2 {
-		return nil, fmt.Errorf("equal? requires two values")
+	leftNum, leftNumOk := args[0].(NumV)
+	rightNum, rightNumOk := args[1].(NumV)
+	if leftNumOk && rightNumOk {
+		return BoolV{bool_: leftNum.num_ == rightNum.num_}, nil
 	}
-	leftValue := args[0]
-	rightValue := args[1]
-	switch left := leftValue.(type) {
-	case NumV:
-		right, isNum := rightValue.(NumV)
-		if !isNum {
-			return BoolV{bool_: false}, nil
-		}
-		return BoolV{bool_: left.num_ == right.num_}, nil
-	case StringV:
-		right, isString := rightValue.(StringV)
-		if !isString {
-			return BoolV{bool_: false}, nil
-		}
-		return BoolV{bool_: left.string_ == right.string_}, nil
-	case BoolV:
-		right, isBool := rightValue.(BoolV)
-		if !isBool {
-			return BoolV{bool_: false}, nil
-		}
-		return BoolV{bool_: left.bool_ == right.bool_}, nil
-	default:
-		return BoolV{bool_: false}, nil
+
+	leftString, leftStringOk := args[0].(StringV)
+	rightString, rightStringOk := args[1].(StringV)
+	if leftStringOk && rightStringOk {
+		return BoolV{bool_: leftString.string_ == rightString.string_}, nil
 	}
+
+	leftBool, leftBoolOk := args[0].(BoolV)
+	rightBool, rightBoolOk := args[1].(BoolV)
+	if leftBoolOk && rightBoolOk {
+		return BoolV{bool_: leftBool.bool_ == rightBool.bool_}, nil
+	}
+
+	return BoolV{bool_: false}, nil
 }
 
 // primStrlen returns the length of a string as a number
 func primStrlen(args []Val) (Val, error) {
-	if len(args) != 1 {
-		return nil, fmt.Errorf("strlen requires one value")
-	}
 	stringValue, isString := args[0].(StringV)
-	if !isString {
-		return nil, fmt.Errorf("not a string")
+	if isString {
+		return NumV{num_: len(stringValue.string_)}, nil
 	}
-	return NumV{num_: float64(len(stringValue.string_))}, nil
+
+	return nil, fmt.Errorf("VEBG8: not a string, got %T", args[0])
+}
+
+// primSubstring : []Val -> (Val, error)
+// Builds a substring given a stop and start index
+func primSubstring(args []Val) (Val, error) {
+	str, StrOk := args[0].(StringV)
+	start, StartOk := args[1].(NumV)
+	stop, StopOk3 := args[2].(NumV)
+	strLength  := len(str.string_)
+
+	if StrOk && StartOk && StopOk3 {
+		if start.num_ < 0 ||
+			stop.num_ < 0 {
+			return nil, fmt.Errorf("VEBG8 substring called with non-naturals, got %v and %v", start.num_, stop.num_)
+		}
+
+		if start.num_ > strLength ||
+			stop.num_ > strLength {
+			return nil, fmt.Errorf("VEBG8 index out of bounds, string length %d, got %v and %v", strLength, start.num_, stop.num_)
+		}
+		if start.num_ > stop.num_ {
+			return nil, fmt.Errorf("VEBG8 stop before start, got start %v and stop %v", start.num_, stop.num_)
+		}
+
+		return StringV{
+			string_: str.string_[start.num_:stop.num_],
+		}, nil
+	}
+
+	return nil, fmt.Errorf("VEBG8 substring called with bad argument types, got %T, %T, and %T", args[0], args[1], args[2])
+}
+
+// primError : []Val -> (Val, error)
+// Raises a user error
+func primError(args []Val) (Val, error) {
+	return nil, fmt.Errorf("VEBG4 user-error %s", serialize(args[0]))
+}
+
+// applyPrimop calls the relevant primitive operator function for an operator.
+func applyPrimop(op string, args []Val) (Val, error) {
+	switch op {
+	case "+":
+		checked, err := checkArity("+", args, 2)
+		if err != nil {
+			return nil, err
+		}
+		return primPlus(checked)
+	case "-":
+		checked, err := checkArity("-", args, 2)
+		if err != nil {
+			return nil, err
+		}
+		return primMinus(checked)
+	case "*":
+		checked, err := checkArity("*", args, 2)
+		if err != nil {
+			return nil, err
+		}
+		return primMult(checked)
+	case "/":
+		checked, err := checkArity("/", args, 2)
+		if err != nil {
+			return nil, err
+		}
+		return primDiv(checked)
+	case "<=":
+		checked, err := checkArity("<=", args, 2)
+		if err != nil {
+			return nil, err
+		}
+		return primLessEqual(checked)
+	case "equal?":
+		checked, err := checkArity("equal?", args, 2)
+		if err != nil {
+			return nil, err
+		}
+		return primEqual(checked)
+	case "strlen":
+		checked, err := checkArity("strlen", args, 1)
+		if err != nil {
+			return nil, err
+		}
+		return primStrlen(checked)
+	case "substring":
+		checked, err := checkArity("substring", args, 3)
+		if err != nil {
+			return nil, err
+		}
+		return primSubstring(checked)
+	case "error":
+		checked, err := checkArity("error", args, 1)
+		if err != nil {
+			return nil, err
+		}
+		return primError(checked)
+	default:
+		return nil, fmt.Errorf("VEBG8: unknown primitive")
+	}
 }
 
 func zip(names []string, values []Val) Env {
@@ -164,7 +323,6 @@ func zip(names []string, values []Val) Env {
 			value: values[i],
 		})
 	}
-
 	return binds
 }
 
@@ -195,7 +353,7 @@ func interp(e ExprC, env Env) (Val, error) {
 				return interp(e.els, env)
 			}
 		default:
-			return nil, fmt.Errorf("VEBG4: if test condition is not a predicate, instead got %T", e)
+			return nil, fmt.Errorf("VEBG8: if test condition is not a predicate, instead got %T", e)
 		}
 	case AppC:
 		fun_val, err := interp(e.f, env)
@@ -225,61 +383,16 @@ func interp(e ExprC, env Env) (Val, error) {
 				// but binds expects individual bindings, the "..." functions basically the exact same as the spread operator in js
 				return interp(r.body_, env2)
 			}
+		case PrimopV:
+			return applyPrimop(r.op, argvals)
 		default:
-			return nil, fmt.Errorf("VEBG4: if test condition is not a predicate, instead got %T", e)
+			return nil, fmt.Errorf("VEBG8: application expected a function, instead got %T", fun_val)
 		}
 
 	default:
-		return nil, fmt.Errorf("VEBG4: interp takes an ExprC, got %T", e)
+		return nil, fmt.Errorf("VEBG8: interp takes an ExprC, got %T", e)
 	}
 
-}
-
-// primSubstring : []Val -> Val
-// Builds a substring given a stop and start index
-func primSubstring(args []Val) Val {
-	if len(args) != 3 {
-		panic("VEBG4 substring called with bad argument types")
-	}
-
-	s, ok1 := args[0].(StringV)
-	start, ok2 := args[1].(NumV)
-	stop, ok3 := args[2].(NumV)
-
-	if !ok1 || !ok2 || !ok3 {
-		panic("VEBG4 substring called with bad argument types")
-	}
-
-	if start.num_ < 0 ||
-		stop.num_ < 0 ||
-		start.num_ != float64(int(start.num_)) ||
-		stop.num_ != float64(int(stop.num_)) {
-
-		panic("VEBG4 substring called with non-naturals")
-	}
-
-	if int(start.num_) > len(s.string_) ||
-		int(stop.num_) > len(s.string_) {
-
-		panic("VEBG4 index out of bounds")
-	}
-
-	if start.num_ > stop.num_ {
-		panic("VEBG4 stop before start")
-	}
-
-	return StringV{
-		string_: s.string_[int(start.num_):int(stop.num_)],
-	}
-}
-
-// primError : []Val -> Val
-// Raises a user error
-func primError(args []Val) Val {
-	if len(args) != 1 {
-		panic("VEBG4 error requires one value")
-	}
-	panic("VEBG4 user-error " + serialize(args[0]))
 }
 
 func main() {
