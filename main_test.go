@@ -364,3 +364,30 @@ func TestPrimErrorUserError(t *testing.T) {
 		NumV{num_: 5},
 	})
 }
+//Zip tests
+//tests that zip correctly pairs names with values
+func TestZip(t *testing.T) {
+	result := zip(
+		[]string{"a", "b"},
+		[]Val{
+			NumV{num_: 1},
+			NumV{num_: 2},
+		},
+	)
+	expected := Env{
+		{name: "a", value: NumV{num_: 1}},
+		{name: "b", value: NumV{num_: 2}},
+	}
+	if !reflect.DeepEqual(result, expected) {
+		t.Fatalf("zip result = %v, want %v", result, expected)
+	}
+}
+// Tesing empty
+// Tests that zip returns an empty environment witho names and no values
+func TestZipEmpty(t *testing.T) {
+	result := zip([]string{}, []Val{})
+	expected := Env{}
+	if !reflect.DeepEqual(result, expected) {
+		t.Fatalf("zip empty = %v, want %v", result, expected)
+	}
+}
